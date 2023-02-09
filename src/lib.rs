@@ -1,7 +1,18 @@
 use std::thread;
 
+pub struct Worker {
+    id: usize,
+    handle: thread::JoinHandle<()>
+}
+
+impl Worker {
+    pub fn new(id: usize) -> Worker {
+        let handle = thread::spawn(||{});        
+        Worker {id, handle}
+    }
+}
 pub struct ThreadPool {
-    threads: Vec<thread::JoinHandle<()>>
+    threads: Vec<Worker>
 }
 
 impl ThreadPool {
@@ -13,10 +24,11 @@ impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
         assert!(size > 0);  // a pool of 0 should not be recoverable with a Result
 
-        let mut threads = Vec::with_capacity(size);
+        let mut threads: Vec<Worker> = Vec::with_capacity(size);
 
-        for _ in 0..size {
-            // ...
+        for idx in 0..size {
+            let w = Worker::new(idx);
+            threads.push(w);
         }
         ThreadPool { threads }
     }
