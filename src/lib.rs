@@ -1,19 +1,28 @@
-use std::thread;
+use std::{thread, sync::{mpsc, Arc, Mutex}};
 
 pub struct Worker {
     id: usize,
-    handle: thread::JoinHandle<()>
+    thread: thread::JoinHandle<()>
 }
 
 impl Worker {
-    pub fn new(id: usize) -> Worker {
-        let handle = thread::spawn(||{});        
-        Worker {id, handle}
+    // pub fn new(id: usize, receiver: mpsc::Receiver<Job>) -> Worker {
+    //     let thread = thread::spawn(||{receiver});
+    //     Worker {id, thread}
+    // }
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+        let thread = thread::spawn(|| {
+            receiver;
+        });
+        Worker { id, thread }
     }
 }
 pub struct ThreadPool {
-    threads: Vec<Worker>
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<Job>,
 }
+
+struct Job;
 
 impl ThreadPool {
     /// Creates a new [`ThreadPool`].
@@ -24,13 +33,16 @@ impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
         assert!(size > 0);  // a pool of 0 should not be recoverable with a Result
 
-        let mut threads: Vec<Worker> = Vec::with_capacity(size);
+        let (sender, receiver) = mpsc::channel();
+
+        let receiver = Arc::new(Mutex::new(receiver));
+
+        let mut workers = Vec::with_capacity(size);
 
         for idx in 0..size {
-            let w = Worker::new(idx);
-            threads.push(w);
+            workers.push(Worker::new(idx, Arc::clone(&receiver)));
         }
-        ThreadPool { threads }
+        ThreadPool { workers, sender }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -40,3 +52,7 @@ impl ThreadPool {
 
     // TODO: pub fn build(size: usize) -> Result<ThreadPool, PoolCreationError> {...}
 }
+
+
+
+
