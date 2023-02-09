@@ -2,7 +2,7 @@ use std::{thread, sync::{mpsc, Arc, Mutex}};
 
 pub struct Worker {
     id: usize,
-    thread: thread::JoinHandle<()>
+    thread: Option<thread::JoinHandle<()>>
 }
 
 impl Worker {
@@ -18,7 +18,7 @@ impl Worker {
 
             job();
         });
-        Worker { id, thread }
+        Worker { id, thread: Some(thread) }
     }
 }
 pub struct ThreadPool {
@@ -27,6 +27,17 @@ pub struct ThreadPool {
 }
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        for worker in &mut self.workers {
+            if let Some(t) = worker.thread.take() {
+                println!("finalizando {:?}", t);
+                t.join().unwrap()
+            }
+        }
+    }
+}
 
 impl ThreadPool {
     /// Creates a new [`ThreadPool`].
